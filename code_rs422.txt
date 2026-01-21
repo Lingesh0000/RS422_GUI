@@ -1,0 +1,114 @@
+using System;
+using System.IO.Ports;
+using System.Windows.Forms;
+
+namespace RS422_GUI
+{
+    public partial class Form1 : Form
+    {
+        // Serial port already added from designer
+        // Variable to store transmitted data
+        string txData = "";
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // ================= FORM LOAD =================
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Load available COM ports
+            comboBoxPort.Items.Clear();
+            comboBoxPort.Items.AddRange(SerialPort.GetPortNames());
+
+            // Baud rate (editable, not fixed)
+            comboBoxBaud.Items.Clear();
+            comboBoxBaud.Items.Add("9600");
+            comboBoxBaud.Items.Add("19200");
+            comboBoxBaud.Items.Add("38400");
+            comboBoxBaud.Items.Add("57600");
+            comboBoxBaud.Items.Add("115200");
+            comboBoxBaud.SelectedIndex = 0;
+            comboBoxBaud.DropDownStyle = ComboBoxStyle.DropDown;
+
+            // Disable SEND button if no hardware
+            btnSend.Enabled = false;
+
+            // Serial port basic settings
+            serialPort1.DataBits = 8;
+            serialPort1.Parity = Parity.None;
+            serialPort1.StopBits = StopBits.One;
+
+            // Enable send only if COM ports exist
+            if (comboBoxPort.Items.Count > 0)
+                btnSend.Enabled = true;
+        }
+
+        // ================= SEND BUTTON =================
+        private void btnSend_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Check hardware selection
+                if (comboBoxPort.SelectedItem == null)
+                {
+                    btnSend.Enabled = false;
+                    MessageBox.Show("No RS-422 hardware connected");
+                    return;
+                }
+
+                // Store transmit data
+                txData = txtTransmit.Text;
+
+                if (string.IsNullOrWhiteSpace(txData))
+                {
+                    MessageBox.Show("Enter data to transmit");
+                    return;
+                }
+
+                // Open serial port if not open
+                if (!serialPort1.IsOpen)
+                {
+                    serialPort1.PortName = comboBoxPort.SelectedItem.ToString();
+                    serialPort1.BaudRate = int.Parse(comboBoxBaud.Text);
+                    serialPort1.Open();
+                }
+
+                // Transmit data
+                serialPort1.WriteLine(txData);
+
+                // Show transmitted data
+                txtReceive.AppendText("TX: " + txData + Environment.NewLine);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+                btnSend.Enabled = false;
+            }
+        }
+
+        // ================= RECEIVE DATA =================
+        private void serialPort1_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            try
+            {
+                string rxData = serialPort1.ReadLine();
+
+                Invoke(new Action(() =>
+                {
+                    txtReceive.AppendText("RX: " + rxData + Environment.NewLine);
+                }));
+            }
+            catch { }
+        }
+
+        // ================= CLEAR BUTTON =================
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            txtTransmit.Clear();
+            txtReceive.Clear();
+        }
+    }
+}
+
