@@ -111,4 +111,110 @@ namespace RS422_GUI
         }
     }
 }
+//////////////////////////////////////////////////////////////////////////////////////
+ETHERNET_PROJECT_2:
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Ethernet_FullDuplex
+{
+    public partial class Form1 : Form
+    {
+        UdpClient udpSender;
+        UdpClient udpReceiver;
+
+        public Form1()
+        {
+            InitializeComponent();
+
+            // Sender does not need binding
+            udpSender = new UdpClient();
+
+            // Timer for continuous sending
+            sendTimer.Interval = 1000; // 1 second
+            sendTimer.Tick += SendTimer_Tick;
+        }
+
+        // ================= TRANSMIT (TX) =================
+        private void SendTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                string remoteIP = txtIP.Text;
+                int txPort = int.Parse(txtTxPort.Text);
+
+                string message = txtSend.Text;
+                byte[] data = Encoding.ASCII.GetBytes(message);
+
+                // Send UDP data
+                udpSender.Send(data, data.Length, remoteIP, txPort);
+
+                txtReceive.AppendText(
+                    $"TX → {remoteIP}:{txPort} | {message}\r\n");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("TX Error: " + ex.Message);
+                sendTimer.Stop();
+            }
+        }
+
+        private void btnSend_Click(object sender, EventArgs e)
+        {
+            sendTimer.Start();
+            MessageBox.Show("Continuous Sending Started");
+        }
+
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            sendTimer.Stop();
+            MessageBox.Show("Sending Stopped");
+        }
+
+        // ================= RECEIVE (RX) =================
+        private void btnReceive_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                int rxPort = int.Parse(txtRxPort.Text);
+
+                // Close old receiver if any
+                udpReceiver?.Close();
+
+                // Bind receiver to RX port
+                udpReceiver = new UdpClient(rxPort);
+
+                Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        UdpReceiveResult result =
+                            await udpReceiver.ReceiveAsync();
+
+                        string receivedData =
+                            Encoding.ASCII.GetString(result.Buffer);
+
+                        Invoke(new Action(() =>
+                        {
+                            txtReceive.AppendText(
+                                $"RX ← {result.RemoteEndPoint} | {receivedData}\r\n");
+                        }));
+                    }
+                });
+
+                MessageBox.Show("Receiver Started");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("RX Error: " + ex.Message);
+            }
+        }
+    }
+}
+
+
 
